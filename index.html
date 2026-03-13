@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>임대료 수익성 분석</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: '#F5F0E6',
+        card: '#FFFFFF',
+        accent: { DEFAULT:'#8B7355', light:'#A89279', dark:'#6B5640', subtle:'#F0EAE0' },
+        warm: { 50:'#FDFBF7',100:'#F7F2E8',200:'#EFE6D5',300:'#E3D5BC',400:'#CCBA9D',500:'#B09E7E',600:'#8B7D63',700:'#6B5F4A',800:'#4A4235',900:'#2E2921' }
+      }
+    }
+  }
+}
+</script>
+<style>
+body{font-family:'Pretendard',system-ui,-apple-system,sans-serif}
+input,select,textarea{transition:border-color .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#8B7355;box-shadow:0 0 0 2px rgba(139,115,85,.15)}
+.tab-btn{position:relative;padding:.75rem 1.5rem;font-weight:500;color:#8B7D63;border-bottom:2px solid transparent;transition:all .2s}
+.tab-btn:hover{color:#6B5F4A}
+.tab-btn.active{color:#4A4235;border-bottom-color:#8B7355}
+.card{background:#fff;border:1px solid #E8E0D0;border-radius:.75rem;padding:1.5rem;margin-bottom:1rem}
+.section-title{font-size:1rem;font-weight:600;color:#4A4235;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid #EFE6D5}
+.inp{width:100%;padding:.5rem .75rem;border:1px solid #DDD5C8;border-radius:.5rem;background:#FAF7F2;font-size:.875rem;color:#2E2921}
+.inp-sm{padding:.375rem .5rem;font-size:.8125rem}
+.btn{padding:.5rem 1.25rem;border-radius:.5rem;font-weight:500;font-size:.875rem;transition:all .15s;cursor:pointer}
+.btn-primary{background:#8B7355;color:#fff}.btn-primary:hover{background:#6B5640}
+.btn-secondary{background:#EFE6D5;color:#6B5F4A}.btn-secondary:hover{background:#E3D5BC}
+.btn-danger{background:#DC6B5A;color:#fff}.btn-danger:hover{background:#C55A49}
+.btn-sm{padding:.375rem .75rem;font-size:.8125rem}
+table{width:100%;border-collapse:collapse;font-size:.8125rem}
+th{background:#F5F0E6;color:#6B5F4A;font-weight:600;padding:.5rem .75rem;text-align:left;border-bottom:1px solid #E3D5BC}
+td{padding:.5rem .75rem;border-bottom:1px solid #EFE6D5;color:#4A4235}
+.badge{display:inline-flex;align-items:center;padding:.125rem .5rem;border-radius:9999px;font-size:.75rem;font-weight:600}
+.rank-1{background:#FFD700;color:#5A4800}.rank-2{background:#C0C0C0;color:#3A3A3A}.rank-3{background:#CD7F32;color:#fff}
+.rank-4{background:#E3D5BC;color:#6B5F4A}.rank-5{background:#F0EAE0;color:#8B7D63}
+.toggle{position:relative;width:2.5rem;height:1.25rem;background:#DDD5C8;border-radius:9999px;cursor:pointer;transition:background .2s}
+.toggle.on{background:#8B7355}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:.95rem;height:.95rem;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle.on::after{transform:translateX(1.25rem)}
+.collapsible-header{cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.collapsible-header .arrow{transition:transform .2s;font-size:.75rem}
+.collapsible-header.open .arrow{transform:rotate(90deg)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#F5F0E6}
+::-webkit-scrollbar-thumb{background:#CCBA9D;border-radius:3px}
+</style>
+</head>
+<body class="bg-bg min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-warm-300 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <h1 class="text-lg font-bold text-warm-800">임대료 수익성 분석</h1>
+    <span id="headerProjectName" class="text-sm text-warm-500"></span>
+  </div>
+  <nav class="max-w-7xl mx-auto px-4 flex gap-0 border-t border-warm-200">
+    <button class="tab-btn active" onclick="switchTab(0)">사업지 정보</button>
+    <button class="tab-btn" onclick="switchTab(1)">임대료 분석</button>
+    <button class="tab-btn" onclick="switchTab(2)">수익성 분석</button>
+  </nav>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6">
+
+<!-- ==================== TAB 1: 사업지 정보 ==================== -->
+<div id="tab0" class="tab-content">
+
+  <div class="card">
+    <div class="section-title">기본 정보</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div><label class="block text-xs text-warm-600 mb-1">프로젝트명</label>
+        <input class="inp" id="projectName" oninput="onProjectNameChange()"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">주소</label>
+        <input class="inp" id="address"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">준공연도</label>
+        <input class="inp" type="number" id="completionYear" value="2025"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">총 세대수</label>
+        <input class="inp" type="number" id="totalUnits" value="200"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">주택 유형</label>
+        <select class="inp" id="housingType">
+          <option value="오피스텔">오피스텔</option>
+          <option value="도시형생활주택">도시형생활주택</option>
+          <option value="기타">기타</option>
+        </select></div>
+      <div><label class="block text-xs text-warm-600 mb-1">전월세전환율 (%)</label>
+        <input class="inp" type="number" step="0.1" id="conversionRate" value="5.9"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">LT / MT 비중</div>
+    <div class="flex items-center gap-4 flex-wrap">
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-warm-700">장기(LT)</label>
+        <input class="inp w-24 text-center" type="number" min="0" max="100" id="ltRatio" value="70" oninput="syncRatio('lt')">
+        <span class="text-sm text-warm-500">%</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-warm-700">단기(MT)</label>
+        <input class="inp w-24 text-center" type="number" min="0" max="100" id="mtRatio" value="30" oninput="syncRatio('mt')">
+        <span class="text-sm text-warm-500">%</span>
+      </div>
+      <span id="ratioWarning" class="text-xs text-red-500 hidden">합계가 100%가 아닙니다</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title flex items-center justify-between">
+      <span>타입별 정보</span>
+      <button class="btn btn-secondary btn-sm" onclick="addTypeRow()">+ 타입 추가</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table id="typeTable">
+        <thead>
+          <tr>
+            <th>타입명</th><th>세대수</th><th>전용면적(㎡)</th><th>신축프리미엄(%)</th><th>풀퍼니시드(%)</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="typeTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">보증금 / 관리비</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div><label class="block text-xs text-warm-600 mb-1">보증금 (만원/세대)</label>
+        <input class="inp" type="number" id="deposit" value="500"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">관리비 (원/세대/월)</label>
+        <input class="inp" type="number" id="managementFee" value="80000"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== TAB 2: 임대료 분석 ==================== -->
+<div id="tab1" class="tab-content hidden">
+
+  <div class="card">
+    <div class="section-title">실거래 데이터 입력</div>
+    <p class="text-xs text-warm-500 mb-2">국토부 실거래 CSV 데이터를 붙여넣으세요 (구분자: 콤마 또는 탭)<br>
+      컬럼: 시군구, 단지명, 전용면적, 계약년월, 보증금, 월세, 층, 건축년도, 도로명</p>
+    <textarea id="csvData" class="inp" rows="8" placeholder="시군구,단지명,전용면적,계약년월,보증금,월세,층,건축년도,도로명&#10;강남구,XX오피스텔,25.72,202401,1000,80,5,2020,테헤란로..."></textarea>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+      <div><label class="block text-xs text-warm-600 mb-1">사업지 위도</label>
+        <input class="inp" type="number" step="0.0001" id="projLat" placeholder="37.5000"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">사업지 경도</label>
+        <input class="inp" type="number" step="0.0001" id="projLng" placeholder="127.0000"></div>
+      <div><label class="block text-xs text-warm-600 mb-1">조회 기간</label>
+        <select class="inp" id="searchPeriod">
+          <option value="6">최근 6개월</option>
+          <option value="12" selected>최근 12개월</option>
+          <option value="24">최근 24개월</option>
+        </select></div>
+      <div class="flex items-end">
+        <button class="btn btn-primary w-full" onclick="analyzeRent()">분석 실행</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 배점 기준 -->
+  <div class="card">
+    <div class="collapsible-header" onclick="toggleCollapse(this)">
+      <span class="section-title mb-0 border-0 pb-0">배점 기준 설정</span>
+      <span class="arrow text-warm-500">▶</span>
+    </div>
+    <div class="collapsible-body hidden mt-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 면적 유사도 -->
+        <div>
+          <h4 class="text-sm font-semibold text-warm-700 mb-2">면적 유사도 (점)</h4>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center gap-2">±<input class="inp inp-sm w-14 text-center" id="area_r1" type="number" value="1">㎡ 이하 = <input class="inp inp-sm w-12 text-center" id="area_s1" type="number" value="5">점</div>
+            <div class="flex items-center gap-2">±<input class="inp inp-sm w-14 text-center" id="area_r2" type="number" value="2">㎡ 이하 = <input class="inp inp-sm w-12 text-center" id="area_s2" type="number" value="4">점</div>
+            <div class="flex items-center gap-2">±<input class="inp inp-sm w-14 text-center" id="area_r3" type="number" value="3">㎡ 이하 = <input class="inp inp-sm w-12 text-center" id="area_s3" type="number" value="3">점</div>
+            <div class="flex items-center gap-2">±<input class="inp inp-sm w-14 text-center" id="area_r4" type="number" value="5">㎡ 이하 = <input class="inp inp-sm w-12 text-center" id="area_s4" type="number" value="2">점</div>
+            <div class="text-warm-500">초과 = 0점</div>
+          </div>
+        </div>
+        <!-- 건축연한 -->
+        <div>
+          <h4 class="text-sm font-semibold text-warm-700 mb-2">건축연한 (점)</h4>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="age_r1" type="number" value="3">년 이하 = <input class="inp inp-sm w-12 text-center" id="age_s1" type="number" value="5">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="age_r2" type="number" value="5">년 이하 = <input class="inp inp-sm w-12 text-center" id="age_s2" type="number" value="4">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="age_r3" type="number" value="7">년 이하 = <input class="inp inp-sm w-12 text-center" id="age_s3" type="number" value="3">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="age_r4" type="number" value="10">년 이하 = <input class="inp inp-sm w-12 text-center" id="age_s4" type="number" value="2">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="age_r5" type="number" value="15">년 이하 = <input class="inp inp-sm w-12 text-center" id="age_s5" type="number" value="1">점</div>
+            <div class="text-warm-500">초과 = 0점</div>
+          </div>
+        </div>
+        <!-- 거리 -->
+        <div>
+          <h4 class="text-sm font-semibold text-warm-700 mb-2">거리 (점)</h4>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="dist_r1" type="number" step="0.1" value="0.3">km 이하 = <input class="inp inp-sm w-12 text-center" id="dist_s1" type="number" value="5">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="dist_r2" type="number" step="0.1" value="0.5">km 이하 = <input class="inp inp-sm w-12 text-center" id="dist_s2" type="number" value="4">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="dist_r3" type="number" step="0.1" value="0.7">km 이하 = <input class="inp inp-sm w-12 text-center" id="dist_s3" type="number" value="3">점</div>
+            <div class="flex items-center gap-2"><input class="inp inp-sm w-14 text-center" id="dist_r4" type="number" step="0.1" value="1.0">km 이하 = <input class="inp inp-sm w-12 text-center" id="dist_s4" type="number" value="2">점</div>
+            <div class="text-warm-500">초과 = 1점</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+        <div><label class="block text-xs text-warm-600 mb-1">최소 합계 점수</label>
+          <input class="inp" type="number" id="minScore" value="10"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">아웃라이어 σ배수</label>
+          <input class="inp" type="number" step="0.1" id="sigmaMultiplier" value="1.5"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">단기 할증 (%)</label>
+          <input class="inp" type="number" id="stPremium" value="10"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">무보증금 할증 (%)</label>
+          <input class="inp" type="number" id="noDepositPremium" value="15"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 분석 결과 -->
+  <div id="rentResults" class="hidden">
+    <div class="card">
+      <div class="section-title">선별된 거래 목록</div>
+      <div class="overflow-x-auto" style="max-height:400px;overflow-y:auto">
+        <table id="filteredTransTable">
+          <thead><tr><th>타입</th><th>단지명</th><th>전용면적</th><th>월세(환산)</th><th>층</th><th>건축년도</th><th>거리</th><th>점수</th></tr></thead>
+          <tbody id="filteredTransBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-title">타입별 적정 임대료</div>
+    <div id="rentCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4"></div>
+
+    <div class="flex justify-end">
+      <button class="btn btn-primary" onclick="goToProfitability()">수익성 분석으로 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TAB 3: 수익성 분석 ==================== -->
+<div id="tab2" class="tab-content hidden">
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- 매출 가정 -->
+    <div class="card">
+      <div class="section-title">매출 가정</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-warm-600 mb-1">LT OCC (%)</label>
+          <input class="inp" type="number" id="ltOcc" value="95"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">MT OCC (%)</label>
+          <input class="inp" type="number" id="mtOcc" value="80"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">LT 연간 인상률 (%)</label>
+          <input class="inp" type="number" step="0.1" id="ltEscalation" value="2.5"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">MT 연간 인상률 (%)</label>
+          <input class="inp" type="number" step="0.1" id="mtEscalation" value="3"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">기타수입 비율 (%)</label>
+          <input class="inp" type="number" id="otherIncomeRate" value="0"></div>
+        <div></div>
+      </div>
+      <h4 class="text-sm font-semibold text-warm-700 mt-4 mb-2">Ramp-Up</h4>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="block text-xs text-warm-600 mb-1">기간 (개월)</label>
+          <input class="inp" type="number" id="rampUpMonths" value="3"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">시작 OCC (%)</label>
+          <input class="inp" type="number" id="rampUpStart" value="30"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">종료 OCC (%)</label>
+          <input class="inp" type="number" id="rampUpEnd" value="80"></div>
+      </div>
+    </div>
+
+    <!-- 비용 가정 -->
+    <div class="card">
+      <div class="section-title">비용 가정</div>
+      <h4 class="text-sm font-semibold text-warm-700 mb-2">LM 비용</h4>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div><label class="block text-xs text-warm-600 mb-1">PMS 단가 (원/세대)</label>
+          <input class="inp" type="number" id="pmsUnitCost" value="3500"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">결제수수료 (원/월)</label>
+          <input class="inp" type="number" id="paymentFee" value="110000"></div>
+      </div>
+
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="text-sm font-semibold text-warm-700">FM 비용</h4>
+        <div class="flex items-center gap-2 text-xs text-warm-600">
+          <span>외주</span>
+          <div class="toggle" id="fmOutsourceToggle" onclick="toggleFmOutsource()"></div>
+        </div>
+      </div>
+      <div id="fmDetailTable">
+        <table>
+          <thead><tr><th>직종</th><th>인원</th><th>단가(원)</th><th>소계(원)</th></tr></thead>
+          <tbody>
+            <tr><td>시설팀장</td><td><input class="inp inp-sm w-16 text-center fm-count" type="number" value="1" data-role="시설팀장" oninput="calcFM()"></td><td><input class="inp inp-sm w-28 text-right fm-cost" type="number" value="4910000" oninput="calcFM()"></td><td class="fm-sub text-right">4,910,000</td></tr>
+            <tr><td>시설일반</td><td><input class="inp inp-sm w-16 text-center fm-count" type="number" value="1" oninput="calcFM()"></td><td><input class="inp inp-sm w-28 text-right fm-cost" type="number" value="3680000" oninput="calcFM()"></td><td class="fm-sub text-right">3,680,000</td></tr>
+            <tr><td>보안</td><td><input class="inp inp-sm w-16 text-center fm-count" type="number" value="2" oninput="calcFM()"></td><td><input class="inp inp-sm w-28 text-right fm-cost" type="number" value="2520000" oninput="calcFM()"></td><td class="fm-sub text-right">5,040,000</td></tr>
+            <tr><td>미화</td><td><input class="inp inp-sm w-16 text-center fm-count" type="number" value="2" oninput="calcFM()"></td><td><input class="inp inp-sm w-28 text-right fm-cost" type="number" value="2480000" oninput="calcFM()"></td><td class="fm-sub text-right">4,960,000</td></tr>
+            <tr><td>FO</td><td><input class="inp inp-sm w-16 text-center fm-count" type="number" id="foCount" value="1" oninput="calcFM()"></td><td><input class="inp inp-sm w-28 text-right fm-cost" type="number" value="3500000" oninput="calcFM()"></td><td class="fm-sub text-right">3,500,000</td></tr>
+          </tbody>
+          <tfoot><tr><td colspan="3" class="text-right font-semibold">FM 합계</td><td class="text-right font-semibold" id="fmTotal">22,090,000</td></tr></tfoot>
+        </table>
+      </div>
+      <div id="fmOutsourceInput" class="hidden mt-2">
+        <label class="block text-xs text-warm-600 mb-1">FM 외주 월 총액 (원)</label>
+        <input class="inp" type="number" id="fmOutsourceCost" value="22000000">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <div><label class="block text-xs text-warm-600 mb-1">장기수선충당금 (원/호/월)</label>
+          <input class="inp" type="number" id="reserveFund" value="15000"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">분석 기간 (년)</label>
+          <input class="inp" type="number" id="analysisPeriod" value="5"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">운영비 연간 인상률 (%)</label>
+          <input class="inp" type="number" step="0.1" id="opexEscalation" value="3"></div>
+        <div><label class="block text-xs text-warm-600 mb-1">인건비 연간 인상률 (%)</label>
+          <input class="inp" type="number" step="0.1" id="laborEscalation" value="3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 계약구조별 조건 -->
+  <div class="card">
+    <div class="section-title">계약구조별 조건</div>
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div class="bg-warm-50 rounded-lg p-3 border border-warm-200">
+        <h4 class="text-sm font-semibold text-warm-800 mb-2">① 마스터리스</h4>
+        <div class="space-y-2">
+          <div><label class="block text-xs text-warm-600 mb-1">보장율 (%)</label>
+            <input class="inp inp-sm" type="number" id="ml_guarantee" value="100"></div>
+          <div><label class="block text-xs text-warm-600 mb-1">연간 인상률 (%)</label>
+            <input class="inp inp-sm" type="number" step="0.1" id="ml_escalation" value="2"></div>
+        </div>
+      </div>
+      <div class="bg-warm-50 rounded-lg p-3 border border-warm-200">
+        <h4 class="text-sm font-semibold text-warm-800 mb-2">② 위탁(정률)</h4>
+        <div><label class="block text-xs text-warm-600 mb-1">수수료율 (%)</label>
+          <input class="inp inp-sm" type="number" id="cm_pct_rate" value="7"></div>
+      </div>
+      <div class="bg-warm-50 rounded-lg p-3 border border-warm-200">
+        <h4 class="text-sm font-semibold text-warm-800 mb-2">③ 위탁(정액)</h4>
+        <div><label class="block text-xs text-warm-600 mb-1">객실당 수수료 (원/호/월)</label>
+          <input class="inp inp-sm" type="number" id="cm_fix_rate" value="70000"></div>
+      </div>
+      <div class="bg-warm-50 rounded-lg p-3 border border-warm-200">
+        <h4 class="text-sm font-semibold text-warm-800 mb-2">④ 월세보장</h4>
+        <div class="space-y-2">
+          <div><label class="block text-xs text-warm-600 mb-1">보장율 (%)</label>
+            <input class="inp inp-sm" type="number" id="rg_guarantee" value="90"></div>
+          <div><label class="block text-xs text-warm-600 mb-1">연간 인상률 (%)</label>
+            <input class="inp inp-sm" type="number" step="0.1" id="rg_escalation" value="2"></div>
+        </div>
+      </div>
+      <div class="bg-warm-50 rounded-lg p-3 border border-warm-200">
+        <h4 class="text-sm font-semibold text-warm-800 mb-2">⑤ MG</h4>
+        <div class="space-y-2">
+          <div><label class="block text-xs text-warm-600 mb-1">보장율 (%)</label>
+            <input class="inp inp-sm" type="number" id="mg_guarantee" value="80"></div>
+          <div><label class="block text-xs text-warm-600 mb-1">초과수익 배분율 (%)</label>
+            <input class="inp inp-sm" type="number" id="mg_share" value="60"></div>
+          <div><label class="block text-xs text-warm-600 mb-1">연간 인상률 (%)</label>
+            <input class="inp inp-sm" type="number" step="0.1" id="mg_escalation" value="2"></div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 flex justify-center">
+      <button class="btn btn-primary px-8" onclick="calculateProfitability()">수익성 분석 실행</button>
+    </div>
+  </div>
+
+  <!-- 수익성 분석 결과 -->
+  <div id="profitResults" class="hidden">
+
+    <div class="section-title">타입별 렌트롤 요약</div>
+    <div class="card mb-4">
+      <div class="overflow-x-auto">
+        <table id="rentRollSummaryTable">
+          <thead><tr><th>타입</th><th>세대수</th><th>LT 임대료</th><th>ST 임대료</th><th>LT 월매출</th><th>MT 월매출</th></tr></thead>
+          <tbody id="rentRollSummaryBody"></tbody>
+          <tfoot id="rentRollSummaryFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-title">계약구조별 수익성 비교</div>
+    <div id="profitCardsContainer" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4"></div>
+
+    <div class="card">
+      <div class="section-title">연도별 P&L</div>
+      <div class="overflow-x-auto">
+        <table id="plTable">
+          <thead id="plTableHead"></thead>
+          <tbody id="plTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">연도별 영업이익 비교</div>
+      <div style="height:350px"><canvas id="profitChart"></canvas></div>
+    </div>
+
+  </div>
+</div>
+
+</main>
+
+<script>
+// ===================== UTILITIES =====================
+const $ = id => document.getElementById(id);
+const v = id => parseFloat($(id).value) || 0;
+const fmt = n => n.toLocaleString('ko-KR');
+const fmtManwon = n => fmt(Math.round(n)) + '만원';
+const fmtWon = n => fmt(Math.round(n)) + '원';
+const round10k = n => Math.round(n);
+
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371,toR=Math.PI/180;
+  const dLat=(lat2-lat1)*toR,dLon=(lon2-lon1)*toR;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*toR)*Math.cos(lat2*toR)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function mean(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0}
+function std(arr){const m=mean(arr);return Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/arr.length)}
+
+// ===================== TAB NAVIGATION =====================
+let currentTab = 0;
+function switchTab(idx){
+  currentTab = idx;
+  document.querySelectorAll('.tab-content').forEach((el,i)=>el.classList.toggle('hidden',i!==idx));
+  document.querySelectorAll('.tab-btn').forEach((el,i)=>el.classList.toggle('active',i===idx));
+  if(idx===2) updateFOCount();
+}
+
+// ===================== COLLAPSIBLE =====================
+function toggleCollapse(header){
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('hidden');
+}
+
+// ===================== TAB 1: PROJECT INFO =====================
+let types = [{name:'A',units:100,area:25,newPremium:5,furnPremium:3},{name:'B',units:60,area:33,newPremium:5,furnPremium:3},{name:'C',units:40,area:45,newPremium:5,furnPremium:3}];
+let rentData = {}; // filled by Tab 2
+
+function renderTypeTable(){
+  const tb = $('typeTableBody');
+  tb.innerHTML = '';
+  types.forEach((t,i)=>{
+    tb.innerHTML += `<tr>
+      <td><input class="inp inp-sm" value="${t.name}" onchange="types[${i}].name=this.value;autoSave()"></td>
+      <td><input class="inp inp-sm w-20 text-right" type="number" value="${t.units}" onchange="types[${i}].units=+this.value;autoSave()"></td>
+      <td><input class="inp inp-sm w-20 text-right" type="number" step="0.01" value="${t.area}" onchange="types[${i}].area=+this.value;autoSave()"></td>
+      <td><input class="inp inp-sm w-20 text-right" type="number" step="0.1" value="${t.newPremium}" onchange="types[${i}].newPremium=+this.value;autoSave()"></td>
+      <td><input class="inp inp-sm w-20 text-right" type="number" step="0.1" value="${t.furnPremium}" onchange="types[${i}].furnPremium=+this.value;autoSave()"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeTypeRow(${i})">×</button></td>
+    </tr>`;
+  });
+}
+
+function addTypeRow(){
+  if(types.length>=5)return alert('최대 5개 타입까지 가능합니다');
+  types.push({name:String.fromCharCode(65+types.length),units:0,area:20,newPremium:5,furnPremium:3});
+  renderTypeTable(); autoSave();
+}
+function removeTypeRow(i){types.splice(i,1);renderTypeTable();autoSave();}
+
+function syncRatio(src){
+  if(src==='lt') $('mtRatio').value = 100-v('ltRatio');
+  else $('ltRatio').value = 100-v('mtRatio');
+  const sum=v('ltRatio')+v('mtRatio');
+  $('ratioWarning').classList.toggle('hidden',sum===100);
+  autoSave();
+}
+
+function onProjectNameChange(){
+  $('headerProjectName').textContent = $('projectName').value;
+  autoSave();
+}
+
+function updateFOCount(){
+  const units = v('totalUnits');
+  $('foCount').value = Math.max(1, Math.ceil(units/200));
+  calcFM();
+}
+
+// ===================== TAB 2: RENT ANALYSIS =====================
+function parseCSV(text){
+  const lines = text.trim().split('\n').filter(l=>l.trim());
+  if(!lines.length) return [];
+  const delim = lines[0].includes('\t') ? '\t' : ',';
+  const rows = [];
+  const startIdx = lines[0].match(/시군구/) ? 1 : 0;
+  for(let i=startIdx;i<lines.length;i++){
+    const cols = lines[i].split(delim).map(c=>c.trim().replace(/"/g,''));
+    if(cols.length<9) continue;
+    rows.push({
+      district: cols[0],
+      name: cols[1],
+      area: parseFloat(cols[2])||0,
+      contractYM: cols[3].replace(/[^0-9]/g,''),
+      deposit: parseFloat(cols[4].replace(/,/g,''))||0,
+      rent: parseFloat(cols[5].replace(/,/g,''))||0,
+      floor: parseInt(cols[6])||0,
+      builtYear: parseInt(cols[7])||0,
+      road: cols[8],
+      lat: cols.length>10 ? parseFloat(cols[9])||null : null,
+      lng: cols.length>10 ? parseFloat(cols[10])||null : null,
+    });
+  }
+  return rows;
+}
+
+function getAreaScore(diff){
+  const ranges=[[v('area_r1'),v('area_s1')],[v('area_r2'),v('area_s2')],[v('area_r3'),v('area_s3')],[v('area_r4'),v('area_s4')]];
+  for(const[r,s] of ranges) if(diff<=r) return s;
+  return 0;
+}
+function getAgeScore(age){
+  const ranges=[[v('age_r1'),v('age_s1')],[v('age_r2'),v('age_s2')],[v('age_r3'),v('age_s3')],[v('age_r4'),v('age_s4')],[v('age_r5'),v('age_s5')]];
+  for(const[r,s] of ranges) if(age<=r) return s;
+  return 0;
+}
+function getDistScore(dist){
+  const ranges=[[v('dist_r1'),v('dist_s1')],[v('dist_r2'),v('dist_s2')],[v('dist_r3'),v('dist_s3')],[v('dist_r4'),v('dist_s4')]];
+  for(const[r,s] of ranges) if(dist<=r) return s;
+  return 1;
+}
+
+function analyzeRent(){
+  const csv = $('csvData').value.trim();
+  if(!csv) return alert('실거래 데이터를 입력하세요');
+  if(!types.length) return alert('Tab1에서 타입 정보를 먼저 입력하세요');
+
+  const transactions = parseCSV(csv);
+  if(!transactions.length) return alert('파싱된 거래가 없습니다. CSV 형식을 확인하세요');
+
+  const projLat=v('projLat'), projLng=v('projLng');
+  const period = v('searchPeriod');
+  const now = new Date();
+  const cutoffYM = (now.getFullYear()*100 + now.getMonth()+1) - period;
+  const cutoffStr = String(cutoffYM < 100 ? cutoffYM + (Math.floor(cutoffYM/100)-1)*100 : cutoffYM);
+  // Better cutoff calculation
+  const cutDate = new Date(now);
+  cutDate.setMonth(cutDate.getMonth() - period);
+  const cutYM = cutDate.getFullYear()*100 + cutDate.getMonth()+1;
+
+  const convRate = v('conversionRate');
+  const minScore = v('minScore');
+  const sigma = v('sigmaMultiplier');
+  const completionYear = v('completionYear');
+
+  const allFiltered = [];
+  rentData = {};
+
+  types.forEach(type => {
+    const scored = [];
+    transactions.forEach(tx => {
+      const txYM = parseInt(tx.contractYM.substring(0,6));
+      if(txYM < cutYM) return;
+
+      const areaDiff = Math.abs(tx.area - type.area);
+      const areaScore = getAreaScore(areaDiff);
+
+      const age = completionYear - tx.builtYear;
+      const buildingAge = Math.abs(age);
+      const ageScore = getAgeScore(buildingAge);
+
+      let dist = null, distScore = 5;
+      if(projLat && projLng && tx.lat && tx.lng){
+        dist = haversine(projLat, projLng, tx.lat, tx.lng);
+        distScore = getDistScore(dist);
+      } else if(projLat && projLng) {
+        distScore = 3; // default when no building coords
+      }
+
+      const totalScore = areaScore + ageScore + distScore;
+      if(totalScore < minScore) return;
+
+      const eqRent = tx.rent + tx.deposit * convRate / 100 / 12;
+      const pyeong = tx.area / 3.3058;
+      const rentPerPy = pyeong > 0 ? eqRent / pyeong : 0;
+
+      scored.push({
+        ...tx,
+        typeName: type.name,
+        eqRent: Math.round(eqRent*10)/10,
+        rentPerPy,
+        dist: dist !== null ? Math.round(dist*100)/100 : '-',
+        score: totalScore,
+        areaScore, ageScore, distScore
+      });
+    });
+
+    // Remove outliers
+    if(scored.length > 2){
+      const rents = scored.map(s=>s.rentPerPy);
+      const m = mean(rents), s = std(rents);
+      const filtered = scored.filter(t => Math.abs(t.rentPerPy - m) <= sigma * s);
+      const avgRentPerPy = mean(filtered.map(f=>f.rentPerPy));
+      const pyeong = type.area / 3.3058;
+
+      const ltRent = round10k(avgRentPerPy * pyeong * (1+type.newPremium/100) * (1+type.furnPremium/100));
+      const stRent = round10k(ltRent * (1+v('stPremium')/100));
+      const noDepRent = round10k(stRent * (1+v('noDepositPremium')/100));
+
+      rentData[type.name] = {
+        basePy: Math.round(avgRentPerPy*100)/100,
+        ltRent, stRent, noDepRent,
+        sampleCount: filtered.length,
+        totalSample: scored.length
+      };
+      filtered.forEach(f=>allFiltered.push(f));
+    } else if(scored.length > 0){
+      const avgRentPerPy = mean(scored.map(s=>s.rentPerPy));
+      const pyeong = type.area / 3.3058;
+      const ltRent = round10k(avgRentPerPy * pyeong * (1+type.newPremium/100) * (1+type.furnPremium/100));
+      const stRent = round10k(ltRent * (1+v('stPremium')/100));
+      const noDepRent = round10k(stRent * (1+v('noDepositPremium')/100));
+      rentData[type.name] = {basePy:Math.round(avgRentPerPy*100)/100,ltRent,stRent,noDepRent,sampleCount:scored.length,totalSample:scored.length};
+      scored.forEach(f=>allFiltered.push(f));
+    } else {
+      rentData[type.name] = {basePy:0,ltRent:0,stRent:0,noDepRent:0,sampleCount:0,totalSample:0};
+    }
+  });
+
+  renderRentResults(allFiltered);
+  $('rentResults').classList.remove('hidden');
+  autoSave();
+}
+
+function renderRentResults(filtered){
+  // Transactions table
+  const tb = $('filteredTransBody');
+  tb.innerHTML = '';
+  filtered.sort((a,b)=>b.score-a.score).forEach(t=>{
+    tb.innerHTML += `<tr>
+      <td><span class="badge bg-warm-200 text-warm-700">${t.typeName}</span></td>
+      <td>${t.name}</td><td>${t.area}㎡</td>
+      <td>${fmtManwon(t.eqRent)}</td><td>${t.floor}층</td>
+      <td>${t.builtYear}</td><td>${t.dist}km</td>
+      <td><span class="font-semibold">${t.score}점</span></td>
+    </tr>`;
+  });
+
+  // Rent cards
+  const container = $('rentCardsContainer');
+  container.innerHTML = '';
+  types.forEach(type => {
+    const r = rentData[type.name];
+    if(!r) return;
+    container.innerHTML += `
+    <div class="card border-accent/20">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-warm-800">${type.name}타입</h3>
+        <span class="text-xs text-warm-500">${type.area}㎡ · ${type.units}세대</span>
+      </div>
+      <div class="text-xs text-warm-500 mb-2">기준 평당월세: ${fmtManwon(r.basePy)} (표본 ${r.sampleCount}건)</div>
+      <div class="space-y-2">
+        <div class="flex justify-between items-center p-2 bg-warm-50 rounded">
+          <span class="text-sm text-warm-700">장기(LT)</span>
+          <span class="font-bold text-accent">${fmtManwon(r.ltRent)}</span>
+        </div>
+        <div class="flex justify-between items-center p-2 bg-warm-50 rounded">
+          <span class="text-sm text-warm-700">단기(MT)</span>
+          <span class="font-bold text-accent">${fmtManwon(r.stRent)}</span>
+        </div>
+        <div class="flex justify-between items-center p-2 bg-warm-50 rounded">
+          <span class="text-sm text-warm-700">무보증금</span>
+          <span class="font-bold text-accent">${fmtManwon(r.noDepRent)}</span>
+        </div>
+      </div>
+    </div>`;
+  });
+}
+
+function goToProfitability(){
+  switchTab(2);
+  // Auto-run if data ready
+  setTimeout(()=>calculateProfitability(), 100);
+}
+
+// ===================== TAB 3: FM CALCULATION =====================
+let fmOutsource = false;
+function toggleFmOutsource(){
+  fmOutsource = !fmOutsource;
+  $('fmOutsourceToggle').classList.toggle('on', fmOutsource);
+  $('fmDetailTable').classList.toggle('hidden', fmOutsource);
+  $('fmOutsourceInput').classList.toggle('hidden', !fmOutsource);
+  autoSave();
+}
+
+function calcFM(){
+  const rows = document.querySelectorAll('#fmDetailTable tbody tr');
+  let total = 0;
+  rows.forEach(row => {
+    const count = parseFloat(row.querySelector('.fm-count').value)||0;
+    const cost = parseFloat(row.querySelector('.fm-cost').value)||0;
+    const sub = count * cost;
+    row.querySelector('.fm-sub').textContent = fmt(sub);
+    total += sub;
+  });
+  $('fmTotal').textContent = fmt(total);
+  autoSave();
+}
+
+function getFMCost(){
+  if(fmOutsource) return v('fmOutsourceCost');
+  let total = 0;
+  document.querySelectorAll('#fmDetailTable tbody tr').forEach(row=>{
+    total += (parseFloat(row.querySelector('.fm-count').value)||0)*(parseFloat(row.querySelector('.fm-cost').value)||0);
+  });
+  return total;
+}
+
+// ===================== TAB 3: PROFITABILITY =====================
+let profitChart = null;
+
+function calculateProfitability(){
+  const totalUnits = v('totalUnits');
+  const ltRatio = v('ltRatio')/100;
+  const mtRatio = v('mtRatio')/100;
+  const ltOcc = v('ltOcc')/100;
+  const mtOcc = v('mtOcc')/100;
+  const ltEsc = v('ltEscalation')/100;
+  const mtEsc = v('mtEscalation')/100;
+  const otherRate = v('otherIncomeRate')/100;
+  const rampMonths = v('rampUpMonths');
+  const rampStart = v('rampUpStart')/100;
+  const rampEnd = v('rampUpEnd')/100;
+  const period = v('analysisPeriod');
+  const opexEsc = v('opexEscalation')/100;
+  const laborEsc = v('laborEscalation')/100;
+
+  // Rent Roll (만원/월)
+  let ltMonthly = 0, mtMonthly = 0;
+  const rrRows = [];
+  types.forEach(type => {
+    const r = rentData[type.name];
+    const ltR = r ? r.ltRent : 0;
+    const stR = r ? r.stRent : 0;
+    const ltUnits = Math.round(type.units * ltRatio);
+    const mtUnits = type.units - ltUnits;
+    const ltRev = ltR * ltUnits;
+    const mtRev = stR * mtUnits;
+    ltMonthly += ltRev;
+    mtMonthly += mtRev;
+    rrRows.push({name:type.name, units:type.units, ltRent:ltR, stRent:stR, ltUnits, mtUnits, ltRev, mtRev});
+  });
+
+  const rentRoll = ltMonthly + mtMonthly; // 만원/월 (100% OCC)
+
+  // Render rent roll summary
+  const rrBody = $('rentRollSummaryBody');
+  rrBody.innerHTML = '';
+  rrRows.forEach(r=>{
+    rrBody.innerHTML += `<tr><td>${r.name}</td><td>${r.units} (LT ${r.ltUnits} / MT ${r.mtUnits})</td>
+      <td>${fmtManwon(r.ltRent)}</td><td>${fmtManwon(r.stRent)}</td>
+      <td>${fmtManwon(r.ltRev)}</td><td>${fmtManwon(r.mtRev)}</td></tr>`;
+  });
+  $('rentRollSummaryFoot').innerHTML = `<tr class="font-semibold">
+    <td colspan="4" class="text-right">월 렌트롤 합계</td>
+    <td>${fmtManwon(ltMonthly)}</td><td>${fmtManwon(mtMonthly)}</td></tr>
+    <tr class="font-semibold"><td colspan="4" class="text-right">총 렌트롤</td>
+    <td colspan="2">${fmtManwon(rentRoll)}</td></tr>`;
+
+  // Operating costs (원/월 → 만원/월)
+  const pmsCost = v('pmsUnitCost') * totalUnits / 10000; // 만원
+  const payFee = v('paymentFee') / 10000;
+  const lmCost = pmsCost + payFee;
+  const fmCost = getFMCost() / 10000;
+  const reserveCost = v('reserveFund') * totalUnits / 10000;
+  const baseOpex = lmCost + fmCost + reserveCost; // 만원/월
+  const baseLaborCost = fmCost; // labor portion for separate escalation
+
+  // Contract params
+  const ml = {guarantee:v('ml_guarantee')/100, esc:v('ml_escalation')/100};
+  const cmPct = {rate:v('cm_pct_rate')/100};
+  const cmFix = {rate:v('cm_fix_rate')/10000}; // 만원
+  const rg = {guarantee:v('rg_guarantee')/100, esc:v('rg_escalation')/100};
+  const mg = {guarantee:v('mg_guarantee')/100, share:v('mg_share')/100, esc:v('mg_escalation')/100};
+
+  // Year-by-year calculation
+  const structures = ['마스터리스','위탁(정률)','위탁(정액)','월세보장','MG'];
+  const yearlyData = {}; // {structureName: [{year, revenue, opex, profit, margin}]}
+  structures.forEach(s=>yearlyData[s]=[]);
+
+  for(let y=1;y<=period;y++){
+    const revEscLT = (1+ltEsc)**(y-1);
+    const revEscMT = (1+mtEsc)**(y-1);
+    const opexEscFactor = (1+opexEsc)**(y-1);
+    const laborEscFactor = (1+laborEsc)**(y-1);
+
+    // Monthly figures for this year
+    const yLtMonthly = ltMonthly * revEscLT;
+    const yMtMonthly = mtMonthly * revEscMT;
+
+    // OCC - handle ramp-up in year 1
+    let effectiveRevenue;
+    if(y===1 && rampMonths > 0){
+      let totalRev = 0;
+      for(let m=1;m<=12;m++){
+        let occ;
+        if(m <= rampMonths){
+          occ = rampStart + (rampEnd - rampStart) * (m-1) / Math.max(rampMonths-1,1);
+        } else {
+          // After ramp-up, use normal OCC
+          occ = ltRatio * ltOcc + mtRatio * mtOcc; // blended
+        }
+        const monthRev = (yLtMonthly + yMtMonthly) * occ;
+        totalRev += monthRev;
+      }
+      effectiveRevenue = totalRev / 12; // average monthly
+    } else {
+      effectiveRevenue = yLtMonthly * ltOcc + yMtMonthly * mtOcc;
+    }
+
+    effectiveRevenue *= (1 + otherRate);
+
+    // Opex with split escalation (labor vs non-labor)
+    const nonLaborOpex = (lmCost + reserveCost) * opexEscFactor;
+    const laborOpex = baseLaborCost * laborEscFactor;
+    const yOpex = nonLaborOpex + laborOpex;
+
+    // Occupied units (for 정액)
+    const blendedOcc = y===1 && rampMonths > 0 ?
+      (() => {let s=0;for(let m=1;m<=12;m++){if(m<=rampMonths)s+=rampStart+(rampEnd-rampStart)*(m-1)/Math.max(rampMonths-1,1);else s+=ltRatio*ltOcc+mtRatio*mtOcc;}return s/12;})() :
+      ltRatio*ltOcc + mtRatio*mtOcc;
+    const occupiedUnits = totalUnits * blendedOcc;
+
+    // Rent roll for this year (100% basis, escalated)
+    const yRentRoll = (ltMonthly * revEscLT + mtMonthly * revEscMT);
+
+    // Each structure
+    const mlEsc = (1+ml.esc)**(y-1);
+    const rgEsc = (1+rg.esc)**(y-1);
+    const mgEsc = (1+mg.esc)**(y-1);
+
+    // ① 마스터리스: 유효매출 - 운영비 - (렌트롤 × 보장율 × 에스컬레이션)
+    const mlOwnerPay = rentRoll * ml.guarantee * mlEsc;
+    const mlProfit = effectiveRevenue - yOpex - mlOwnerPay;
+
+    // ② 위탁(정률): 유효매출 × 수수료율 - 운영비
+    const cmPctProfit = effectiveRevenue * cmPct.rate - yOpex;
+
+    // ③ 위탁(정액): 입주세대 × 객실당수수료 - 운영비
+    const cmFixProfit = occupiedUnits * cmFix.rate - yOpex;
+
+    // ④ 월세보장: 유효매출 - 운영비 - (렌트롤 × 보장율)
+    const rgOwnerPay = rentRoll * rg.guarantee * rgEsc;
+    const rgProfit = effectiveRevenue - yOpex - rgOwnerPay;
+
+    // ⑤ MG: MAX(유효매출 × 배분율, 렌트롤 × 보장율) - 운영비
+    const mgAmount = Math.max(effectiveRevenue * mg.share, rentRoll * mg.guarantee * mgEsc);
+    const mgProfit = mgAmount - yOpex;
+
+    const annualData = [
+      {rev:effectiveRevenue*12, opex:yOpex*12, profit:mlProfit*12},
+      {rev:effectiveRevenue*12, opex:yOpex*12, profit:cmPctProfit*12},
+      {rev:effectiveRevenue*12, opex:yOpex*12, profit:cmFixProfit*12},
+      {rev:effectiveRevenue*12, opex:yOpex*12, profit:rgProfit*12},
+      {rev:effectiveRevenue*12, opex:yOpex*12, profit:mgProfit*12},
+    ];
+
+    structures.forEach((s,i)=>{
+      yearlyData[s].push({
+        year:y,
+        revenue: annualData[i].rev,
+        opex: annualData[i].opex,
+        profit: annualData[i].profit,
+        margin: annualData[i].rev > 0 ? annualData[i].profit/annualData[i].rev*100 : 0
+      });
+    });
+  }
+
+  // Break-even OCC
+  const baseNormalRev = ltMonthly + mtMonthly; // 100% OCC monthly revenue
+  const breakEvenOcc = baseNormalRev > 0 ? baseOpex / baseNormalRev * 100 : 0;
+
+  // Summary
+  const summaries = structures.map((s,i)=>{
+    const data = yearlyData[s];
+    const cumProfit = data.reduce((a,d)=>a+d.profit,0);
+    const monthlyPerUnit = totalUnits > 0 ? cumProfit / (period*12) / totalUnits : 0;
+    return {name:s, idx:i+1, cumProfit, monthlyPerUnit, data};
+  });
+
+  // Ranking
+  summaries.sort((a,b)=>b.cumProfit-a.cumProfit);
+  summaries.forEach((s,i)=>s.rank=i+1);
+  summaries.sort((a,b)=>a.idx-b.idx);
+
+  renderProfitResults(summaries, yearlyData, structures, period, breakEvenOcc);
+  $('profitResults').classList.remove('hidden');
+  autoSave();
+}
+
+function renderProfitResults(summaries, yearlyData, structures, period, breakEvenOcc){
+  // Profit cards
+  const container = $('profitCardsContainer');
+  container.innerHTML = '';
+  const rankClass = ['','rank-1','rank-2','rank-3','rank-4','rank-5'];
+  const icons = ['①','②','③','④','⑤'];
+
+  summaries.forEach((s,i) => {
+    const profitColor = s.cumProfit >= 0 ? 'text-green-700' : 'text-red-600';
+    container.innerHTML += `
+    <div class="card border-l-4 ${s.rank<=2?'border-l-accent':'border-l-warm-300'}">
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="text-sm font-bold text-warm-800">${icons[i]} ${s.name}</h4>
+        <span class="badge ${rankClass[s.rank]}">${s.rank}위</span>
+      </div>
+      <div class="space-y-1 text-xs">
+        <div class="flex justify-between"><span class="text-warm-500">누적 영업이익</span><span class="font-bold ${profitColor}">${fmtManwon(s.cumProfit)}</span></div>
+        <div class="flex justify-between"><span class="text-warm-500">월평균 객실당</span><span class="font-semibold">${fmtManwon(Math.round(s.monthlyPerUnit))}</span></div>
+        <div class="flex justify-between"><span class="text-warm-500">손익분기 OCC</span><span class="font-semibold">${breakEvenOcc.toFixed(1)}%</span></div>
+      </div>
+    </div>`;
+  });
+
+  // P&L Table
+  const thead = $('plTableHead');
+  const tbody = $('plTableBody');
+  thead.innerHTML = `<tr><th>항목</th>${Array.from({length:period},(_,i)=>`<th>${i+1}년차</th>`).join('')}<th>합계</th></tr>`;
+
+  let rows = '';
+  structures.forEach((s,si) => {
+    const data = yearlyData[s];
+    const totalRev = data.reduce((a,d)=>a+d.revenue,0);
+    const totalOpex = data.reduce((a,d)=>a+d.opex,0);
+    const totalProfit = data.reduce((a,d)=>a+d.profit,0);
+
+    rows += `<tr class="bg-warm-50"><td colspan="${period+2}" class="font-bold text-warm-800">${icons[si]} ${s}</td></tr>`;
+    rows += `<tr><td class="pl-4 text-warm-600">매출</td>${data.map(d=>`<td class="text-right">${fmtManwon(Math.round(d.revenue))}</td>`).join('')}<td class="text-right font-semibold">${fmtManwon(Math.round(totalRev))}</td></tr>`;
+    rows += `<tr><td class="pl-4 text-warm-600">운영비</td>${data.map(d=>`<td class="text-right">${fmtManwon(Math.round(d.opex))}</td>`).join('')}<td class="text-right font-semibold">${fmtManwon(Math.round(totalOpex))}</td></tr>`;
+    rows += `<tr><td class="pl-4 text-warm-600">영업이익</td>${data.map(d=>`<td class="text-right font-semibold ${d.profit>=0?'text-green-700':'text-red-600'}">${fmtManwon(Math.round(d.profit))}</td>`).join('')}<td class="text-right font-bold ${totalProfit>=0?'text-green-700':'text-red-600'}">${fmtManwon(Math.round(totalProfit))}</td></tr>`;
+    rows += `<tr><td class="pl-4 text-warm-600">이익률</td>${data.map(d=>`<td class="text-right">${d.margin.toFixed(1)}%</td>`).join('')}<td class="text-right font-semibold">${totalRev>0?(totalProfit/totalRev*100).toFixed(1):'0.0'}%</td></tr>`;
+  });
+  tbody.innerHTML = rows;
+
+  // Chart
+  renderProfitChart(yearlyData, structures, period);
+}
+
+function renderProfitChart(yearlyData, structures, period){
+  const ctx = $('profitChart').getContext('2d');
+  if(profitChart) profitChart.destroy();
+
+  const colors = ['#8B7355','#B09E7E','#CCBA9D','#6B5F4A','#4A4235'];
+  const labels = Array.from({length:period},(_,i)=>`${i+1}년차`);
+
+  profitChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: structures.map((s,i)=>({
+        label: s,
+        data: yearlyData[s].map(d=>Math.round(d.profit)),
+        backgroundColor: colors[i],
+        borderRadius: 4,
+      }))
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {position:'top', labels:{font:{size:11},usePointStyle:true}},
+        tooltip: {callbacks:{label: ctx => `${ctx.dataset.label}: ${fmtManwon(ctx.raw)}`}}
+      },
+      scales: {
+        y: {
+          ticks: {callback: val => fmt(val)+'만원', font:{size:10}},
+          grid: {color:'#EFE6D5'}
+        },
+        x: {grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ===================== LOCAL STORAGE =====================
+let saveTimer;
+function autoSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 500);
+}
+
+function doSave(){
+  const state = {
+    projectName: $('projectName').value,
+    address: $('address').value,
+    completionYear: $('completionYear').value,
+    totalUnits: $('totalUnits').value,
+    housingType: $('housingType').value,
+    conversionRate: $('conversionRate').value,
+    ltRatio: $('ltRatio').value,
+    mtRatio: $('mtRatio').value,
+    deposit: $('deposit').value,
+    managementFee: $('managementFee').value,
+    types,
+    rentData,
+    csvData: $('csvData').value,
+    projLat: $('projLat').value,
+    projLng: $('projLng').value,
+    searchPeriod: $('searchPeriod').value,
+    // Scoring
+    area_r1:$('area_r1').value,area_s1:$('area_s1').value,area_r2:$('area_r2').value,area_s2:$('area_s2').value,
+    area_r3:$('area_r3').value,area_s3:$('area_s3').value,area_r4:$('area_r4').value,area_s4:$('area_s4').value,
+    age_r1:$('age_r1').value,age_s1:$('age_s1').value,age_r2:$('age_r2').value,age_s2:$('age_s2').value,
+    age_r3:$('age_r3').value,age_s3:$('age_s3').value,age_r4:$('age_r4').value,age_s4:$('age_s4').value,
+    age_r5:$('age_r5').value,age_s5:$('age_s5').value,
+    dist_r1:$('dist_r1').value,dist_s1:$('dist_s1').value,dist_r2:$('dist_r2').value,dist_s2:$('dist_s2').value,
+    dist_r3:$('dist_r3').value,dist_s3:$('dist_s3').value,dist_r4:$('dist_r4').value,dist_s4:$('dist_s4').value,
+    minScore:$('minScore').value, sigmaMultiplier:$('sigmaMultiplier').value,
+    stPremium:$('stPremium').value, noDepositPremium:$('noDepositPremium').value,
+    // Tab3
+    ltOcc:$('ltOcc').value, mtOcc:$('mtOcc').value,
+    ltEscalation:$('ltEscalation').value, mtEscalation:$('mtEscalation').value,
+    otherIncomeRate:$('otherIncomeRate').value,
+    rampUpMonths:$('rampUpMonths').value, rampUpStart:$('rampUpStart').value, rampUpEnd:$('rampUpEnd').value,
+    pmsUnitCost:$('pmsUnitCost').value, paymentFee:$('paymentFee').value,
+    reserveFund:$('reserveFund').value, analysisPeriod:$('analysisPeriod').value,
+    opexEscalation:$('opexEscalation').value, laborEscalation:$('laborEscalation').value,
+    fmOutsource, fmOutsourceCost:$('fmOutsourceCost').value,
+    ml_guarantee:$('ml_guarantee').value, ml_escalation:$('ml_escalation').value,
+    cm_pct_rate:$('cm_pct_rate').value, cm_fix_rate:$('cm_fix_rate').value,
+    rg_guarantee:$('rg_guarantee').value, rg_escalation:$('rg_escalation').value,
+    mg_guarantee:$('mg_guarantee').value, mg_share:$('mg_share').value, mg_escalation:$('mg_escalation').value,
+    // FM table
+    fmRows: Array.from(document.querySelectorAll('#fmDetailTable tbody tr')).map(row=>({
+      count: row.querySelector('.fm-count').value,
+      cost: row.querySelector('.fm-cost').value,
+    })),
+  };
+  localStorage.setItem('rentAnalysis', JSON.stringify(state));
+}
+
+function loadState(){
+  const raw = localStorage.getItem('rentAnalysis');
+  if(!raw) return;
+  try{
+    const s = JSON.parse(raw);
+    const fields = ['projectName','address','completionYear','totalUnits','housingType','conversionRate',
+      'ltRatio','mtRatio','deposit','managementFee','csvData','projLat','projLng','searchPeriod',
+      'area_r1','area_s1','area_r2','area_s2','area_r3','area_s3','area_r4','area_s4',
+      'age_r1','age_s1','age_r2','age_s2','age_r3','age_s3','age_r4','age_s4','age_r5','age_s5',
+      'dist_r1','dist_s1','dist_r2','dist_s2','dist_r3','dist_s3','dist_r4','dist_s4',
+      'minScore','sigmaMultiplier','stPremium','noDepositPremium',
+      'ltOcc','mtOcc','ltEscalation','mtEscalation','otherIncomeRate',
+      'rampUpMonths','rampUpStart','rampUpEnd',
+      'pmsUnitCost','paymentFee','reserveFund','analysisPeriod','opexEscalation','laborEscalation',
+      'fmOutsourceCost',
+      'ml_guarantee','ml_escalation','cm_pct_rate','cm_fix_rate',
+      'rg_guarantee','rg_escalation','mg_guarantee','mg_share','mg_escalation'];
+    fields.forEach(f=>{if(s[f]!==undefined && $(f)) $(f).value=s[f]});
+    if(s.types) types = s.types;
+    if(s.rentData) rentData = s.rentData;
+    if(s.fmOutsource){fmOutsource=true;$('fmOutsourceToggle').classList.add('on');$('fmDetailTable').classList.add('hidden');$('fmOutsourceInput').classList.remove('hidden');}
+    if(s.fmRows){
+      const rows=document.querySelectorAll('#fmDetailTable tbody tr');
+      s.fmRows.forEach((r,i)=>{if(rows[i]){rows[i].querySelector('.fm-count').value=r.count;rows[i].querySelector('.fm-cost').value=r.cost;}});
+    }
+    onProjectNameChange();
+  }catch(e){console.warn('Load error',e)}
+}
+
+// ===================== INIT =====================
+function init(){
+  loadState();
+  renderTypeTable();
+  calcFM();
+  updateFOCount();
+
+  // Auto-save on any input change
+  document.addEventListener('input', autoSave);
+  document.addEventListener('change', autoSave);
+}
+
+init();
+</script>
+</body>
+</html>
